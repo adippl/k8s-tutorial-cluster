@@ -4,7 +4,7 @@ This are configuration file for my test k8s cluster. It's half automated
 installation script for plugins which I need to have usable kubernetes
 cluster. 
 
-Main cluster overview:
+## Main cluster overview:
 * kubernetes version 1.27.3
 * Cillium for CNI
 * external-dns (exposing dns to pihole)
@@ -24,10 +24,11 @@ Main cluster overview:
 * prometheus (basic separate instance) 
 
 
-##configs use 2 domains
-###dmz.homelab.domain - your private domain
-###your.real.domain.on.cloudflare - real domain managed by Cloudflare
-This domain is used to generate TLS via letsencrypt dns01. You can use
+## configs use 2 domains
+* dmz.homelab.domain - your private domain
+* your.real.domain.on.cloudflare - real domain managed by Cloudflare
+  
+Real domain is used to generate TLS via letsencrypt dns01. You can use
 external-dns to confiure dna A/AAAA records for this domain in
 Cloudflara. I'm using pihole on my network because I don't want to
 expose DNS info about my private services.
