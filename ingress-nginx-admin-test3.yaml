@@ -1,0 +1,34 @@
+controller:
+  # doesn't seem to work
+  #admissionWebhooks:
+  #  certManager:
+  #    enabled: true
+  ingressClass: admin-ingress
+  ingressClassResource:
+    # set custom controllerValue to differentiate if other 
+    # ingress-nginx instances
+    controllerValue: k8s.io/admin-ingress
+    # this is not default ingress
+    default: false
+    name: admin-ingress
+  # deploy on every node, fine for small clusters
+  kind: DaemonSet
+  # enable metrics scraping by prometheus-operator
+  metrics:
+    enabled: true
+    serviceMonitor:
+      additionalLabels:
+        release: prom
+      enabled: true
+  # run with high priority
+  priorityClassName: high-priority
+  # define some resource usage
+  resources:
+    requests:
+      memory: 200Mi
+  service:
+    annotations:
+      # request specific IP from metalLB
+      metallb.universe.tf/loadBalancerIPs: 10.0.9.55
+    # show real client ip outside of cluster
+    externalTrafficPolicy: Local

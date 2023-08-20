@@ -1,0 +1,25 @@
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: high-priority-infra
+value: 1000000
+globalDefault: false
+description: "This class gives priority to critical servies."
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: high-priority
+value: 10000
+globalDefault: false
+description: "Basic high priority class."
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: compile-priority
+value: -1000
+globalDefault: false
+description: "low priority class for compile pods"
+---

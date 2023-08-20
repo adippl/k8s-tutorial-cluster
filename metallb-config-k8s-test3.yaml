@@ -1,0 +1,43 @@
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: dmz9-ips
+  namespace: metallb-system
+spec:
+  addresses:
+  - 10.0.9.55-10.0.9.59
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: dmz-adv
+  namespace: metallb-system
+spec:
+  ipAddressPools:
+  - dmz9-ips
+  interfaces: # l2 advertise only on specific interface
+  - eth0
+
+---
+#you can define different pool on different interface
+---
+#apiVersion: metallb.io/v1beta1
+#kind: L2Advertisement
+#metadata:
+#  name: lab-adv
+#  namespace: metallb-system
+#spec:
+#  ipAddressPools:
+#  - lab6-ips
+#  interfaces:
+#  - eth0
+---
+#apiVersion: metallb.io/v1beta1
+#kind: IPAddressPool
+#metadata:
+#  name: lab6-ips
+#  namespace: metallb-system
+#spec:
+#  addresses:
+#  - 10.0.6.55-10.0.6.59
+---

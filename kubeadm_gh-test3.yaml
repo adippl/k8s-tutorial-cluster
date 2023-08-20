@@ -1,0 +1,32 @@
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: ClusterConfiguration
+networking:   
+# this is how you customized networks in k8s IPAM. This cluster doesn't
+# need it. Cilium will manage IPAM for k8s.
+#  serviceSubnet: "10.102.0.0/16"
+#  podSubnet: "10.204.0.0/16"
+#  podSubnet: "10.102.0.0/16"
+# dns of my cluster (default is cluster.local)
+  dnsDomain: "gh-k8s-test3.dmz.homelab.domain"
+kubernetesVersion: "v1.27.3"
+# dns name of my k8s api virtual ip. (haproxy + keepalived on control
+# plane nodes)
+controlPlaneEndpoint: "gh-k8s-test3-api.dmz.homelab.domain:8443"
+
+---
+kind: KubeletConfiguration
+apiVersion: kubelet.config.k8s.io/v1beta1
+# Use this only if your cluster runs on gentoo without systemd driver.
+cgroupDriver: cgroupfs 
+containerRuntimeEndpoint: "unix:///var/run/crio/crio.sock"
+# perform tls bootstrap on kubeletes. It's required for metrics server
+# during join cluster will generate certificatesigningrequests.certificates.k8s.io
+# for you to approve (kubectl certificate approve X)
+serverTLSBootstrap: true
+
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: InitConfiguration
+# skip installing kube-proxy. We don't need it. Cilium replaces it
+skipPhases:
+  - addon/kube-proxy

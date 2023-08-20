@@ -1,0 +1,71 @@
+cluster:
+  name: kubernetes
+# replace kube-proxy
+kubeProxyReplacement: true
+# running without kube-proxy cilium needs to know where api is
+k8sServiceHost: gh-k8s-test3-api.dmz.homelab.domain
+k8sServicePort: 8443
+
+operator:
+  replicas: 1
+serviceAccounts:
+  cilium:
+    name: cilium
+  operator:
+    name: cilium-operator
+# use vxlan with wireguard encryption
+tunnel: vxlan
+encryption:
+  enabled: true
+  type: wireguard
+
+hubble:
+  peerService:
+    # configure our custom cluster dnsDomain
+    clusterDomain: gh-k8s-test3.dmz.homelab.domain
+  relay:
+    enabled: true
+  ui:
+    enabled: true
+    # expose hubble-ui via ingress-nginx
+    ingress:
+      enabled: true
+      annotations:
+        # auto generate TLS with cert-manager
+        cert-manager.io/cluster-issuer: "letsencrypt-prod"
+      # select ingress-class
+      className: "admin-ingress"
+      hosts:
+        - hubble.k8s-test3.your.real.domain.on.cloudflare
+      labels: {}
+      tls: 
+       - secretName: hubble-ui-tls
+         hosts:
+           - hubble.k8s-test3.your.real.domain.on.cloudflare
+
+###debug mode
+hostFirewall:
+  enabled: true
+hostPort:
+  enabled: true
+policyEnforcementMode: "default"
+policyAuditMode: true
+
+ipam:
+  #mode: "kubernetes"
+  mode: "cluster-pool"
+  ciliumNodeUpdateRate: "15s"
+  operator:
+    # define custom ip pools. I had to change then to avoid repeating IPs in my lab
+    clusterPoolIPv4PodCIDRList: ["10.203.0.0/16"]
+    # subnet mask of subnet alocated per node (IPv6)
+    clusterPoolIPv4MaskSize: 24
+    #clusterPoolIPv6PodCIDRList: ["fd00::/80"]
+    # subnet mask of subnet alocated per node (IPv6)
+    #clusterPoolIPv6MaskSize: 96
+
+# use only ipv4
+ipv4:
+  enabled: true
+ipv6:
+  enabled: false

@@ -1,0 +1,443 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: prom-graf
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  namespace: prom-graf
+  name: prometheus-pvc
+  labels:
+    velero.io/exclude-from-backup: "false"
+spec:
+  #storageClassName: csi-rbd-sc-ssd
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  namespace: prom-graf
+  name: grafana-pvc
+  labels:
+    velero.io/exclude-from-backup: "false"
+spec:
+  #storageClassName: csi-rbd-sc-ssd
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+#apiVersion: v1
+#kind: PersistentVolumeClaim
+#metadata:
+#  namespace: prom-graf
+#  name: loki-pvc
+#  labels:
+#    velero.io/exclude-from-backup: "true"
+#spec:
+#  #storageClassName: csi-nfs-hdd
+#  storageClassName: csi-cephfs-sc
+#  accessModes:
+#  - ReadWriteOnce
+#  resources:
+#    requests:
+#      storage: 50Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-cfm
+  labels:
+  namespace: prom-graf
+data:
+  # web.yml doesn't work by default
+  #web.yml: |
+  #  basic_auth_users:
+  #    admin: "$2a$12$tolU8E2kjPewr0j9dpm84.OiQxkidt20Rqr.Y4B3G5tumK9Wp7QsG"
+  #    grafana : "c3ZOVWFTSThMN2NCb0NJMWQzblVmS1c1Vw=="
+  prometheus.yml: |
+    # my global config
+    global:
+      scrape_interval: 15s # Set the scrape interval to every 15 seconds. Default is every 1 minute.
+      evaluation_interval: 15s # Evaluate rules every 15 seconds. The default is every 1 minute.
+      # scrape_timeout is set to the global default (10s).
+    
+    # Alertmanager configuration
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets:
+              # - alertmanager:9093
+    
+    # Load rules once and periodically evaluate them according to the global 'evaluation_interval'.
+    rule_files:
+      # - "first_rules.yml"
+      # - "second_rules.yml"
+    
+
+    # A scrape configuration containing exactly one endpoint to scrape:
+    # Here it's Prometheus itself.
+    scrape_configs:
+      # The job name is added as a label `job=<job_name>` to any timeseries scraped from this config.
+      - job_name: "prometheus"
+        # metrics_path defaults to '/metrics'
+        # scheme defaults to 'http'.
+        static_configs:
+          - targets: ["localhost:9090"]
+      - job_name: "Hardware"
+        static_configs:
+          - targets:
+            - "r520-1.lab.homelab.domain:9100"
+        relabel_configs:
+        - source_labels: [__address__]
+          separator: ':'
+          regex: '(.*):(.*)'
+          replacement: '${1}'
+          target_label: instance
+      - job_name: "hw-k8s-nodes"
+        static_configs:
+          - targets: 
+            - "hw-k8s-ctrl-1.lab.homelab.domain:9100"
+            - "hw-k8s-worker-1.lab.homelab.domain:9100"
+        relabel_configs:
+        - source_labels: [__address__]
+          separator: ':'
+          regex: '(.*):(.*)'
+          replacement: '${1}'
+          target_label: instance
+#      - job_name: "gh-k8s-nodes"
+#        static_configs:
+#          - targets: 
+#            - "gh-k8s-ctrl-1.dmz.homelab.domain:9100"
+#            - "gh-k8s-ctrl-2.dmz.homelab.domain:9100"
+#            - "gh-k8s-ctrl-3.dmz.homelab.domain:9100"
+#            - "gh-k8s-worker-1.dmz.homelab.domain:9100"
+#            - "gh-k8s-worker-2.dmz.homelab.domain:9100"
+#            - "gh-k8s-worker-3.dmz.homelab.domain:9100"
+#      - job_name: "ceph"
+#        static_configs:
+#        - targets:
+#          - "http://10.0.6.8:9283"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-cfm
+  labels:
+  namespace: prom-graf
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: "Prometheus 1 "
+        type: prometheus
+        uid: PROM1
+        orgId: 1
+        access: proxy
+        url: http://prometheus.prom-graf.svc:9090
+        editable: false
+        isDefault: true
+        basicAuth: true
+        #basicAuthUser: user
+        #basicAuthPassword: XXXXXXXXXXXXXXXXXXXXXXXXX
+      - name: "Prometheus kube-prometheus-stack gh-k8s-test3"
+        type: prometheus
+        uid: PROMTEST3
+        orgId: 1
+        access: proxy
+        url: http://prom-kube-prometheus-stack-prometheus.prometheus.svc:9090
+        editable: true
+        isDefault: false
+      - name: "Loki logs of user1 on gh-k8s-test3"
+        type: loki
+        uid: loki-user-1
+        access: proxy
+        url: https://gateway.loki.k8s-test3.your.real.domain.on.cloudflare
+        editable: false
+        basicAuth: true
+        basicAuthUser: gh-k8s-test3
+        secureJsonData:
+          basicAuthPassword: XXXXXXXXXXXXXXXXXXXXXXXXX
+        jsonData:
+          maxLines: 1000
+      - name: "Loki logs of user1 on gh-k8s-test3"
+        type: loki
+        uid: loki-user-2
+        access: proxy
+        url: https://gateway.loki.k8s-test3.your.real.domain.on.cloudflare
+        editable: false
+        basicAuth: true
+        basicAuthUser: user2
+        secureJsonData:
+          basicAuthPassword: XXXXXXXXXXXXXXXXXXXXXXXXX
+        #orgId: "gh-k8s-test3"
+        jsonData:
+          maxLines: 1000
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: prometheus
+  labels:
+    app: prometheus
+  namespace: prom-graf
+spec:
+  serviceName: prometheus
+  replicas: 1
+  selector:
+    matchLabels:
+      pod-label: prometheus-pod
+  template:
+    metadata:
+      labels:
+        pod-label: prometheus-pod
+    spec:
+      #initContainers:
+      #- name: init-pvc
+      #  image: busybox:latest
+      #  #command: ['sh', '-c', "chown nogroup:nobody /data"]
+      #  command: ['sh', '-c', "touch /data/test && chown nogroup:nobody /data/test "]
+      #  volumeMounts:
+      #   - name: prom-data
+      #     mountPath: /data
+      securityContext:
+        runAsUser: 678
+        runAsGroup: 678
+        fsGroup: 65533
+      containers:
+      - name: prometheus
+        image: prom/prometheus:latest
+        resources:
+          requests:
+            memory: "1024Mi"
+            cpu: "1"
+          limits:
+            memory: "1024Mi"
+            cpu: "1"
+        env:
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: 9090
+            #scheme: {{ .Values.server.probeScheme }}
+            #httpHeaders:
+          #tcpSocket:
+          #  port: 9090
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 4
+          failureThreshold: 3
+          successThreshold: 1
+        livenessProbe:
+          httpGet:
+            path: /-/healthy
+            port: 9090
+            #scheme: 
+            #httpHeaders:
+          #tcpSocket:
+          #  port: 9090
+          initialDelaySeconds: 30
+          periodSeconds: 15
+          timeoutSeconds: 10
+          failureThreshold: 3
+          successThreshold: 1
+        startupProbe:
+          httpGet:
+            path: /-/healthy
+            port: 9090
+            scheme:  
+            #httpHeaders:
+            #- name: {{ .name }}
+            #  value: {{ .value }}
+          #tcpSocket:
+          #  port: 9090
+          failureThreshold: 5
+          periodSeconds: 30
+          timeoutSeconds: 10
+        ports:
+        - containerPort: 9090
+        volumeMounts:
+         - name: prom-data
+           #mountPath: /data
+           mountPath: /prometheus
+           #subPath: mysql-data
+         - name: prom-config
+           mountPath: /etc/prometheus/prometheus.yml
+           subPath: prometheus.yml
+         #- name: prom-config
+         #  mountPath: /etc/prometheus/web.yml
+         #  subPath: web.yml
+      volumes:
+      - name: prom-data
+        persistentVolumeClaim:
+          claimName: prometheus-pvc
+      - name: prom-config
+        configMap:
+          name: prometheus-cfm
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  labels:
+    app: prometheus
+  namespace: prom-graf
+  annotations:
+    metallb.universe.tf/address-pool: dmz9-ips
+    metallb.universe.tf/allow-shared-ip: pgl
+spec:
+  selector:
+    pod-label: prometheus-pod
+  ports:
+  - name: mysql
+    protocol: TCP
+    targetPort: 9090
+    port: 9090
+  type: LoadBalancer
+  #externalTrafficPolicy: Local
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: prometheus 
+  namespace: prom-graf
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: admin-ingress
+  tls:
+  - hosts:
+    - prometheus.k8s-test3.your.real.domain.on.cloudflare
+    secretName: prometheus.k8s-test3.your.real.domain.on.cloudflare # < cert-manager will store the created certificate in this secret.
+  rules:
+    - host: prometheus.k8s-test3.your.real.domain.on.cloudflare
+      http:
+        paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: prometheus
+              port:
+                number: 9090
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: grafana
+  labels:
+    app: grafana
+  namespace: prom-graf
+spec:
+  serviceName: grafana
+  replicas: 1
+  selector:
+    matchLabels:
+      pod-label: grafana-pod
+  template:
+    metadata:
+      labels:
+        pod-label: grafana-pod
+      annotations:
+        backup.velero.io/backup-volumes: grafana-data
+    spec:
+      #initContainers:
+      #- name: init-pvc
+      #  image: busybox:latest
+      #  #command: ['sh', '-c', "chown nogroup:nobody /data"]
+      #  command: ['sh', '-c', "touch /data/test && chown nogroup:nobody /data/test "]
+      #  volumeMounts:
+      #   - name: prom-data
+      #     mountPath: /data
+      securityContext:
+      #  runAsUser: 678
+      #  runAsGroup: 678
+        fsGroup: 65533
+      containers:
+      - name: grafana
+        image: grafana/grafana:latest
+        resources:
+          requests:
+            memory: "1024Mi"
+            cpu: "1"
+          limits:
+            memory: "1024Mi"
+            cpu: "1"
+        env:
+        - name: GF_DEFAULT_INSTANCE_NAME
+          value: "grafana.k8s-test3.homelab.domain"
+        - name: GF_SERVER_ROOT_URL
+          value: "https://grafana.k8s-test3.your.real.domain.on.cloudflare/"
+          
+        ports:
+        - containerPort: 3306
+        volumeMounts:
+         - name: grafana-data
+           mountPath: /var/lib/grafana
+           #subPath: mysql-data
+         - name: grafana-config
+           mountPath: /etc/grafana/provisioning/datasources/datasources.yaml
+           subPath: datasources.yaml
+      volumes:
+      - name: grafana-data
+        persistentVolumeClaim:
+          claimName: grafana-pvc
+      - name: grafana-config
+        configMap:
+          name: grafana-cfm
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  labels:
+    app: grafana
+  namespace: prom-graf
+  annotations:
+    metallb.universe.tf/address-pool: dmz9-ips
+    metallb.universe.tf/allow-shared-ip: pgl
+spec:
+  selector:
+    pod-label: grafana-pod
+  ports:
+  - name: webui
+    protocol: TCP
+    targetPort: 3000
+    port: 3000
+  type: LoadBalancer
+  #externalTrafficPolicy: Local
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana
+  namespace: prom-graf
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: admin-ingress
+  tls:
+  - hosts:
+    - grafana.k8s-test3.your.real.domain.on.cloudflare
+    secretName: grafana.k8s-test3.your.real.domain.on.cloudflare # < cert-manager will store the created certificate in this secret.
+  rules:
+    - host: grafana.k8s-test3.your.real.domain.on.cloudflare
+      http:
+        paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: grafana
+              port:
+                number: 3000
+
+# http://prometheus.prom-graf.svc:9090

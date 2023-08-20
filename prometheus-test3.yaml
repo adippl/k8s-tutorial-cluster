@@ -1,0 +1,83 @@
+prometheus:
+  ingress:
+    enabled: true
+    ingressClassName: admin-ingress
+    annotations:
+      #cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    labels: {}
+    hosts:
+      - prometheus.prom-stack.k8s-test3.your.real.domain.on.cloudflare
+    path: /
+    tls:
+    - hosts:
+        - prometheus.prom-stack.k8s-test3.your.real.domain.on.cloudflare
+      secretName: prometheus.prom-stack.k8s-test3.your.real.domain.on.cloudflare
+  prometheusSpec:
+    retention: 3d
+    replicas: 1
+    podAntiAffinity: "hard"
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          #storageClassName: csi-rbd-sc-ssd
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 20Gi
+    resources:
+     requests:
+       cpu: 500m
+       memory: 1536Mi
+     limits:
+       cpu: 500m
+       memory: 1536Mi
+    priorityClassName: "high-priority"
+#nodeExporter:
+#  enabled: true
+#kubeStateMetrics:
+#  enabled: true
+#kube-state-metrics:
+#  releaseLabel: true
+#  selfMonitor:
+#    enabled: false
+
+grafana:
+  #service:
+  #  type: LoadBalancer
+  #  loadBalancerIP: "10.0.9.84"
+  ingress:
+    enabled: true
+    ingressClassName: admin-ingress
+    annotations:
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    labels: {}
+    hosts:
+      - grafana.prom-stack.k8s-test3.your.real.domain.on.cloudflare
+    path: /
+    tls:
+    - hosts:
+        - grafana.prom-stack.k8s-test3.your.real.domain.on.cloudflare
+      secretName: grafana.prom-stack.k8s-test3.your.real.domain.on.cloudflare
+  resources:
+    limits:
+      cpu: 200m
+      memory: 512Mi
+    requests:
+      cpu: 50m
+      memory: 256Mi
+  prometheusSpec:
+    priorityClassName: "high-priority"
+
+prometheusOperator:
+  resources:
+    limits:
+      cpu: 100m
+      memory: 200Mi
+    requests:
+      cpu: 50m
+      memory: 100Mi
+  priorityClassName: "high-priority"
+
+alertmanager:
+  alertmanagerSpec:
+    priorityClassName: "high-priority"

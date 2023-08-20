@@ -1,0 +1,81 @@
+global:
+    # confiure our cluster custo dnsDomain
+    clusterDomain: gh-k8s-test3.dmz.homelab.domain
+loki:
+  commonConfig:
+    # do not replicate
+    replication_factor: 1
+  storage:
+    # use normal filessystem
+    type: 'filesystem'
+    # example config of loki connected to external s3
+    #bucketNames:
+    #  chunks: s3-loki-chunks
+    #  ruler: s3-loki-ruler
+    #  admin: s3-loki-admin
+    #type: 's3'
+    #s3:
+    #  s3: null
+    #  endpoint: http://10.20.30.40:8000
+    #  region: home
+    #  secretAccessKey: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    #  accessKeyId: XXXXXXXXXXXXXXXXXXXX
+    #  #signatureVersion: null
+    #  s3ForcePathStyle: true # this is required for s3 on ceph rgw
+    #  insecure: true # true if using http
+    #  #http_config: {}
+  # enable authentication for tenants
+  # gateway should auto set X-Scope-OrgID based on tenant username
+  auth_enabled: true
+  # list of tenants
+  tenants:
+  - name: user1
+    password: XXXXXXXXXXXXXXXXXXXXXXXXX
+  - name: user2
+    password: XXXXXXXXXXXXXXXXXXXXXXXXX
+
+# do not replicate
+singleBinary:
+  replicas: 1
+
+# retention configuration
+tableManager:
+  enabled:  false
+  retention_deletes_enabled: true
+  retention_period: "30d"
+
+# http gateway for proper auth support
+gateway:
+  enabled: true
+  replicas: 1
+  #ingress:
+  #  enabled: false
+  # enable ingress with tls
+  # ingress uses real domain and TLS but runs on our private network
+  ingress:
+    enabled: true
+    enabled: enabled
+    # use normal ingress class
+    ingressClassName: user-ingress
+    annotations:
+      # use cert-manager issuer for TLS creation
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+      #nginx.ingress.kubernetes.io/ssl-redirect: "false"
+      ### this doesn't work. idk how to disable http via annotations
+      ###kubernetes.io/ingress.allow-http: "false"
+    labels:
+      # don't monitor this ingress
+      blackbox.monitoring.exclude: "true"
+    hosts:
+      - host: gateway.loki.k8s-test3.your.real.domain.on.cloudflare
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: gateway.loki.k8s-test3.your.real.domain.on.cloudflare
+        hosts:
+          - gateway.loki.k8s-test3.your.real.domain.on.cloudflare
+  # enable auth for tenants at ingress level
+  # gateway should auto set X-Scope-OrgID based on tenant username
+  basicAuth:
+    enabled: true

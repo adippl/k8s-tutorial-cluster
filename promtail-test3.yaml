@@ -1,0 +1,12 @@
+config:
+  clients:
+    - url: https://gateway.loki.k8s-test3.your.real.domain.on.cloudflare/loki/api/v1/push
+      basic_auth:
+        username: user1
+        password: XXXXXXXXXXXXXXXXXXXXXXXXX
+    # you can also log to some other loki
+    #- url: https://gateway.loki.some.other-cluster/loki/api/v1/push
+    #  tenant_id: 1
+    #  basic_auth:
+    #    username: user4
+    #    password: XXXXXXXXXXXXXXXXXXXXXXXXX
