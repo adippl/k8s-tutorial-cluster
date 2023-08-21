@@ -1,7 +1,7 @@
 cluster:
   name: kubernetes
 # replace kube-proxy
-kubeProxyReplacement: true
+kubeProxyReplacement: strict
 # running without kube-proxy cilium needs to know where api is
 k8sServiceHost: gh-k8s-test3-api.dmz.homelab.domain
 k8sServicePort: 8443
